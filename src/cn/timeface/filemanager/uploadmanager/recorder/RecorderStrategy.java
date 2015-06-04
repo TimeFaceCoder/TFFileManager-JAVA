@@ -39,4 +39,7 @@ public abstract class RecorderStrategy {
 
     //获取上传任务列表
     public abstract List<UploadInfo> getAllRecorders() throws IOException;
+
+    //是否存在该任务
+    public abstract boolean isRecorder(String token) throws IOException;
 }

@@ -1,5 +1,6 @@
 package cn.timeface.filemanager.uploadmanager.upload;
 
+import cn.timeface.filemanager.uploadmanager.IUploadStateListener;
 import cn.timeface.filemanager.uploadmanager.ManagerThreadRunnable;
 import cn.timeface.filemanager.uploadmanager.UploadInfo;
 import cn.timeface.filemanager.uploadmanager.UploadManager;
@@ -24,6 +25,8 @@ public class StreamUpload extends UploadStrategy {
     long totalLength = 0;
 
     boolean cancel = false;
+
+    IUploadStateListener uploadStateListener;
 
     public StreamUpload(UploadInfo uploadInfo) {
         super(uploadInfo);
@@ -54,7 +57,9 @@ public class StreamUpload extends UploadStrategy {
             try {
                 //读取上传记录
                 long recorder = UploadManager.getInstance().getRecorderStrategy().readRecorder(uploadInfo.getToken(), uploadFile.getAbsolutePath().hashCode(), blockIndex, blockSize);
-                totalUploadedLength += recorder;
+                synchronized (uploadInfo) {
+                    totalUploadedLength += recorder;
+                }
 
                 inputStream = new FileInputStream(uploadFile);
                 //将来源文件的指针偏移至开始位置
@@ -87,10 +92,13 @@ public class StreamUpload extends UploadStrategy {
 
                         //存储块上传进度
                         UploadManager.getInstance().getRecorderStrategy().writeRecorder(uploadInfo.getToken(), uploadFile.getAbsolutePath().hashCode(), blockIndex, blockSize, recorder);
-                        //回调整个任务上传进度
-                        UploadManager.getInstance().getUploadStateListener().taskProgress(uploadInfo.getToken(), uploadInfo.getTitle(), totalUploadedLength, totalLength);
-                        //回调单个文件上传进度
-                        UploadManager.getInstance().getUploadStateListener().fileProgress(uploadInfo.getToken(), uploadFile.getAbsolutePath(), recorder, uploadFile.length());
+
+                        if (uploadStateListener != null) {
+                            //回调整个任务上传进度
+                            UploadManager.getInstance().getUploadStateListener().taskProgress(uploadInfo.getToken(), uploadInfo.getTitle(), totalUploadedLength, totalLength);
+                            //回调单个文件上传进度
+                            UploadManager.getInstance().getUploadStateListener().fileProgress(uploadInfo.getToken(), uploadFile.getAbsolutePath(), recorder, uploadFile.length());
+                        }
                     } else {
                         //上传异常处理
                         retryCount++;
@@ -103,37 +111,58 @@ public class StreamUpload extends UploadStrategy {
 
                 //如果超过重试次数，则返回error
                 if (retryCount > RETRY_COUNT) {
-                    UploadManager.getInstance().getUploadStateListener().error(uploadInfo.getToken());
+                    if (uploadStateListener != null) {
+                        UploadManager.getInstance().getUploadStateListener().error(uploadInfo.getToken());
+                    }
                     return;
                 }
 
                 //判断单个文件是否上传完成
                 if (recorder >= uploadFile.length()) {
-                    //回调任务完成事件
-                    UploadManager.getInstance().getUploadStateListener().fileComplete(uploadInfo, uploadFile.getAbsolutePath());
+                    if (uploadStateListener != null) {
+                        //回调任务完成事件
+                        UploadManager.getInstance().getUploadStateListener().fileComplete(uploadInfo, uploadFile.getAbsolutePath());
+                    }
                 }
 
+                System.out.println("111111  totalUploadedLength  " + totalUploadedLength + "   totalLength  = " + totalLength);
                 //判断任务是否上传完成
                 if (totalUploadedLength >= totalLength) {
-                    response = mkFile(uploadFile.length(), Constants.BLOCK_SIZE);
+                    synchronized (uploadInfo) {
+                        //首先判断此任务有没有上传完成。因为断点续传可能会出现多次mkfile的情况
+                        if (UploadManager.getInstance().getRecorderStrategy().isRecorder(uploadInfo.getToken())) {
 
-                    if (response.isSuccessful()) {
-                        //删除缓存信息
-                        UploadManager.getInstance().getRecorderStrategy().deleteRecorder(uploadInfo.getToken());
-                        //回调任务完成事件
-                        UploadManager.getInstance().getUploadStateListener().taskComplete(uploadInfo);
-                    } else {
-                        //异常
-                        UploadManager.getInstance().getUploadStateListener().error(uploadInfo.getToken());
+                            System.out.println("111111  mkFile");
+                            response = mkFile(uploadFile.length(), Constants.BLOCK_SIZE);
+
+                            if (response.isSuccessful()) {
+                                //删除缓存信息
+                                UploadManager.getInstance().getRecorderStrategy().deleteRecorder(uploadInfo.getToken());
+
+                                if (uploadStateListener != null) {
+                                    //回调任务完成事件
+                                    UploadManager.getInstance().getUploadStateListener().taskComplete(uploadInfo);
+                                }
+                            } else {
+                                if (uploadStateListener != null) {
+                                    //异常
+                                    UploadManager.getInstance().getUploadStateListener().error(uploadInfo.getToken());
+                                }
+                            }
+                        }
                     }
                 }
 
             } catch (FileNotFoundException e) {
                 e.printStackTrace();
-                UploadManager.getInstance().getUploadStateListener().error(uploadInfo.getToken());
+                if (uploadStateListener != null) {
+                    UploadManager.getInstance().getUploadStateListener().error(uploadInfo.getToken());
+                }
             } catch (IOException e) {
                 e.printStackTrace();
-                UploadManager.getInstance().getUploadStateListener().error(uploadInfo.getToken());
+                if (uploadStateListener != null) {
+                    UploadManager.getInstance().getUploadStateListener().error(uploadInfo.getToken());
+                }
             } finally {
                 if (inputStream != null) {
                     //关闭数据流
@@ -150,6 +179,7 @@ public class StreamUpload extends UploadStrategy {
 
     @Override
     public void upload() throws Exception {
+        uploadStateListener = UploadManager.getInstance().getUploadStateListener();
         File zipFile = null;
         totalLength = 0;
         if (uploadInfo.isZip()) {
@@ -207,12 +237,12 @@ public class StreamUpload extends UploadStrategy {
     }
 
     private Response mkBlock(int blockIndex, long blockSize, RequestBody requestBody) throws IOException {
-        String url = Constants.MK_BLOCK + "/" + blockSize + "-" + blockIndex; //第一个chunk 使用 mkblock接口
+        String url = Constants.MK_BLOCK + "/" + blockSize + "/" + blockIndex; //第一个chunk 使用 mkblock接口
         return postData(url, requestBody);
     }
 
     private Response putBlock(int blockIndex, int chunkIndex, RequestBody requestBody) throws IOException {
-        String url = Constants.PUT_BLOCK + "/" + (chunkIndex * Constants.CHUCK_SIZE) + "-" + blockIndex + "-" + chunkIndex; // 其他chunk使用putblock接口
+        String url = Constants.PUT_BLOCK + "/" + (chunkIndex * Constants.CHUCK_SIZE) + "/" + blockIndex + "/" + chunkIndex; // 其他chunk使用putblock接口
         return postData(url, requestBody);
     }
 
@@ -237,7 +267,7 @@ public class StreamUpload extends UploadStrategy {
                 .addHeader("Content-Type", "text/plain")
                 .addHeader("uploadToken", uploadInfo.getToken())
                 .addHeader("Content-Length", fileLength + "")
-                .url(Constants.MK_FILE + "/" + fileLength + "/" + blockLength)
+                .url(Constants.MK_FILE + "/" + fileLength + "/" + blockLength + "/mimeType/YXBwbGljYXRpb24vemlw")
                 .build();
 
         Response response = client.newCall(request).execute();

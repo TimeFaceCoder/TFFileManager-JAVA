@@ -14,12 +14,12 @@ public class Main {
 //        File file = new File("/Users/rayboot/Downloads/1.jpg");
         File file1 = new File("/Users/rayboot/Downloads/FXoFEf9k.jpg");
 //        File file2 = new File("/Users/rayboot/Downloads/IMG_1349.JPG");
-        File bigFile = new File("/Users/rayboot/Desktop/时代空播/电影/生活大爆炸/16.mp4");
+//        File bigFile = new File("/Users/rayboot/Desktop/时代空播/电影/生活大爆炸/16.mp4");
         try {
 //            List<File> uploadFiles = new Check().doCheckFile(file2);
             List<String> uploadFiles = new ArrayList<>(10);
-            uploadFiles.add(bigFile.getAbsolutePath());
-            UploadInfo uploadInfo = new UploadInfo("shiyan", "shiyan", uploadFiles).setZip(false);
+            uploadFiles.add(file1.getAbsolutePath());
+            UploadInfo uploadInfo = new UploadInfo("shiyanr", "shiyanr", uploadFiles).setZip(false).setCheckMD5(false).setUploadStrategy(UploadInfo.UPLOAD_STRATEGY_FORM);
             UploadManager.getInstance().addTask(uploadInfo, null);
         } catch (Exception e) {
             e.printStackTrace();

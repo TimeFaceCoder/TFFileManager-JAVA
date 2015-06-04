@@ -99,6 +99,12 @@ public class SimpleFileRecorderStrategy extends RecorderStrategy {
         return result;
     }
 
+    @Override
+    public boolean isRecorder(String token) throws IOException {
+        File file = new File(getRecorderDir() + "/" + TASKS_DIR_NAME, token);
+        return file.exists();
+    }
+
     //删除文件夹
     //param folderPath 文件夹完整绝对路径
     public void delFolder(String folderPath) {
