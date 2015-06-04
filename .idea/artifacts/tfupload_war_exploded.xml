@@ -7,11 +7,9 @@
           <element id="module-output" name="tfupload" />
         </element>
         <element id="directory" name="lib">
-          <element id="library" level="project" name="lib1" />
-          <element id="library" level="project" name="lib" />
+          <element id="library" level="project" name="lib2" />
         </element>
       </element>
-      <element id="javaee-facet-resources" facet="tfupload/web/Web" />
       <element id="javaee-facet-resources" facet="tfupload/web/Web" />
     </root>
   </artifact>
