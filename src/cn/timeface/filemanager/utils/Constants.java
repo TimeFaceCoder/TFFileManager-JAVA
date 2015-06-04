@@ -6,7 +6,6 @@ package cn.timeface.filemanager.utils;
  * @TODO
  */
 public class Constants {
-//    private static final String ROOT = "http://localhost:8080/tfupload/upload/";
     private static final String ROOT = "http://192.168.1.66:8080/tfupload/upload/";
 
     public static final String SINGLE_UPLOAD = ROOT + "uploadfile";
