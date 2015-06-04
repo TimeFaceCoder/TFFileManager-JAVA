@@ -46,6 +46,9 @@ public class StreamUpload extends UploadStrategy {
             int chunkCount = (int) (blockSize / Constants.CHUCK_SIZE);
             chunkCount = blockSize % Constants.CHUCK_SIZE == 0 ? chunkCount : chunkCount + 1;
 
+            //重试次数
+            int retryCount = 0;
+
             FileInputStream inputStream = null;
             Response response;
             try {
@@ -90,26 +93,47 @@ public class StreamUpload extends UploadStrategy {
                         UploadManager.getInstance().getUploadStateListener().fileProgress(uploadInfo.getToken(), uploadFile.getAbsolutePath(), recorder, uploadFile.length());
                     } else {
                         //上传异常处理
+                        retryCount++;
+                        if (retryCount > RETRY_COUNT) {
+                            break;
+                        }
+                        chunkIndex -= 1;
                     }
                 }
-                if (totalUploadedLength >= totalLength) {
-                    mkFile(uploadFile.length());
 
-                    //删除缓存信息
-                    UploadManager.getInstance().getRecorderStrategy().deleteRecorder(uploadInfo.getToken());
-                    //回调任务完成事件
-                    UploadManager.getInstance().getUploadStateListener().taskComplete(uploadInfo);
+                //如果超过重试次数，则返回error
+                if (retryCount > RETRY_COUNT) {
+                    UploadManager.getInstance().getUploadStateListener().error(uploadInfo.getToken());
+                    return;
                 }
 
+                //判断单个文件是否上传完成
                 if (recorder >= uploadFile.length()) {
                     //回调任务完成事件
                     UploadManager.getInstance().getUploadStateListener().fileComplete(uploadInfo, uploadFile.getAbsolutePath());
                 }
 
+                //判断任务是否上传完成
+                if (totalUploadedLength >= totalLength) {
+                    response = mkFile(uploadFile.length(), Constants.BLOCK_SIZE);
+
+                    if (response.isSuccessful()) {
+                        //删除缓存信息
+                        UploadManager.getInstance().getRecorderStrategy().deleteRecorder(uploadInfo.getToken());
+                        //回调任务完成事件
+                        UploadManager.getInstance().getUploadStateListener().taskComplete(uploadInfo);
+                    } else {
+                        //异常
+                        UploadManager.getInstance().getUploadStateListener().error(uploadInfo.getToken());
+                    }
+                }
+
             } catch (FileNotFoundException e) {
                 e.printStackTrace();
+                UploadManager.getInstance().getUploadStateListener().error(uploadInfo.getToken());
             } catch (IOException e) {
                 e.printStackTrace();
+                UploadManager.getInstance().getUploadStateListener().error(uploadInfo.getToken());
             } finally {
                 if (inputStream != null) {
                     //关闭数据流
@@ -128,14 +152,14 @@ public class StreamUpload extends UploadStrategy {
     public void upload() throws Exception {
         File zipFile = null;
         totalLength = 0;
-        if (uploadInfo.isGzip()) {
+        if (uploadInfo.isZip()) {
             zipFile = uploadInfo.getZipFile(UploadManager.getInstance().getRecorderStrategy().getRecorderDir());
             if (zipFile == null) {
-                uploadInfo.setGzip(false);
+                uploadInfo.setZip(false);
             }
         }
 
-        if (uploadInfo.isGzip() && (zipFile != null && zipFile.exists())) {
+        if (uploadInfo.isZip() && (zipFile != null && zipFile.exists())) {
             totalLength = zipFile.length();
             upload(zipFile);
         } else if (uploadInfo.getFilePaths().size() > 0) {
@@ -208,12 +232,12 @@ public class StreamUpload extends UploadStrategy {
         return response;
     }
 
-    private void mkFile(long fileSize) throws IOException {
+    private Response mkFile(long fileLength, long blockLength) throws IOException {
         Request request = new Request.Builder()
                 .addHeader("Content-Type", "text/plain")
                 .addHeader("uploadToken", uploadInfo.getToken())
-                .addHeader("Content-Length", fileSize + "")
-                .url(Constants.MK_FILE + "/" + fileSize)
+                .addHeader("Content-Length", fileLength + "")
+                .url(Constants.MK_FILE + "/" + fileLength + "/" + blockLength)
                 .build();
 
         Response response = client.newCall(request).execute();
@@ -223,6 +247,7 @@ public class StreamUpload extends UploadStrategy {
             System.out.println("post url = " + request.urlString());
             System.out.println("post out info = " + response.body().string());
         }
+        return response;
     }
 
     public RequestBody getInputStreamRequestBody(final MediaType mediaType, final byte[] source, final int length) {

@@ -22,4 +22,7 @@ public interface IUploadStateListener {
 
     //取消任务
     void cancel(String token);
+
+    //上传异常
+    void error(String token);
 }

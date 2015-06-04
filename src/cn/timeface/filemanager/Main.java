@@ -19,7 +19,7 @@ public class Main {
 //            List<File> uploadFiles = new Check().doCheckFile(file2);
             List<String> uploadFiles = new ArrayList<>(10);
             uploadFiles.add(bigFile.getAbsolutePath());
-            UploadInfo uploadInfo = new UploadInfo("shiyan", "shiyan", uploadFiles).setGzip(false);
+            UploadInfo uploadInfo = new UploadInfo("shiyan", "shiyan", uploadFiles).setZip(false);
             UploadManager.getInstance().addTask(uploadInfo, null);
         } catch (Exception e) {
             e.printStackTrace();

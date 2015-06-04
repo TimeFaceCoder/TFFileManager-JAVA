@@ -23,7 +23,7 @@ public class UploadInfo {
     List<String> filePaths;
     String token;
     boolean checkMD5 = false;
-    boolean gzip = false;
+    boolean zip = false;
     String mimeType = "application/octet-stream";
     int uploadStrategy = UPLOAD_STRATEGY_SMART;
     String title;
@@ -104,18 +104,18 @@ public class UploadInfo {
         return params;
     }
 
-    public boolean isGzip() {
-        return gzip;
+    public boolean isZip() {
+        return zip;
     }
 
-    public UploadInfo setGzip(boolean gzip) {
-        this.gzip = gzip;
+    public UploadInfo setZip(boolean zip) {
+        this.zip = zip;
         return this;
     }
 
     public File getZipFile(String tempDir) {
-        if (!gzip) {
-            throw new IllegalArgumentException("gzip is false");
+        if (!zip) {
+            throw new IllegalArgumentException("zip is false");
         }
 
         File zipFile = new File(tempDir + "/" + getToken() + ".zip");
