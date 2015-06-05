@@ -13,7 +13,6 @@ public class Main {
             uploadFiles.add("/Users/rayboot/Downloads/1.jpg");
             uploadFiles.add("/Users/rayboot/Downloads/FXoFEf9k.jpg");
             uploadFiles.add("/Users/rayboot/Downloads/IMG_1349.JPG");
-
             UploadInfo uploadInfo = new UploadInfo("shiyanv", uploadFiles).setZip(true).setCheckMD5(true).addParams("zip", "1");
             UploadManager.getInstance().addTask(uploadInfo, null);
         } catch (Exception e) {
