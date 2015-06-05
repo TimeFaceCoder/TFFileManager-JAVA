@@ -2,8 +2,7 @@
 <project version="4">
   <component name="ProjectModuleManager">
     <modules>
-      <module fileurl="file://$PROJECT_DIR$/TFFileManager.iml" filepath="$PROJECT_DIR$/TFFileManager.iml" />
-      <module fileurl="file://$PROJECT_DIR$/../tfupload/tfupload.iml" filepath="$PROJECT_DIR$/../tfupload/tfupload.iml" />
+      <module fileurl="file://$PROJECT_DIR$/TFFileManager-JAVA.iml" filepath="$PROJECT_DIR$/TFFileManager-JAVA.iml" />
     </modules>
   </component>
 </project>
