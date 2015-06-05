@@ -4,6 +4,7 @@ import cn.timeface.filemanager.uploadmanager.IUploadStateListener;
 import cn.timeface.filemanager.uploadmanager.ManagerThreadRunnable;
 import cn.timeface.filemanager.uploadmanager.UploadInfo;
 import cn.timeface.filemanager.uploadmanager.UploadManager;
+import cn.timeface.filemanager.utils.Base64Utils;
 import cn.timeface.filemanager.utils.Constants;
 import com.squareup.okhttp.MediaType;
 import com.squareup.okhttp.Request;
@@ -15,11 +16,14 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.util.Map;
 
 /**
  * Created by rayboot on 15/5/29.
  */
 public class StreamUpload extends UploadStrategy {
+    final String STREAM_MIME_TYPE = "application/octet-stream";
+    final String ZIP_MIME_TYPE = "application/zip";
     //总上传进度
     long totalUploadedLength = 0;
     long totalLength = 0;
@@ -224,7 +228,7 @@ public class StreamUpload extends UploadStrategy {
 
     @Override
     public MediaType getMediaType() {
-        return MediaType.parse(uploadInfo.getMimeType());
+        return MediaType.parse(STREAM_MIME_TYPE);
     }
 
     private Response postBlock(int blockIndex, long blockSize, int chunkIndex, RequestBody requestBody) throws IOException {
@@ -263,12 +267,17 @@ public class StreamUpload extends UploadStrategy {
     }
 
     private Response mkFile(long fileLength, long blockLength) throws IOException {
-        Request request = new Request.Builder()
+        String mimeTypeEncode = Base64Utils.getBASE64(uploadInfo.isZip() ? ZIP_MIME_TYPE : uploadInfo.getMimeType());
+        Request.Builder requestBuilder = new Request.Builder()
                 .addHeader("Content-Type", "text/plain")
                 .addHeader("uploadToken", uploadInfo.getToken())
                 .addHeader("Content-Length", fileLength + "")
-                .url(Constants.MK_FILE + "/" + fileLength + "/" + blockLength + "/mimeType/YXBwbGljYXRpb24vemlw")
-                .build();
+                .url(Constants.MK_FILE + "/" + fileLength + "/" + blockLength + "/mimeType/" + mimeTypeEncode);
+
+        for (Map.Entry<String, String> param: uploadInfo.getParams().entrySet()) {
+            requestBuilder.addHeader(param.getKey(), param.getValue());
+        }
+        Request request = requestBuilder.build();
 
         Response response = client.newCall(request).execute();
         if (!response.isSuccessful()) {

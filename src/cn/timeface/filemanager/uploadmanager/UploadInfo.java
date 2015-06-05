@@ -30,6 +30,12 @@ public class UploadInfo {
 
     Map<String, String> params = new HashMap<>(10);
 
+    public UploadInfo(String token, List<String> filePaths) {
+        this.title = token;
+        this.token = token;
+        this.filePaths = filePaths;
+    }
+
     public UploadInfo(String title, String token, List<String> filePaths) {
         this.title = title;
         this.token = token;
