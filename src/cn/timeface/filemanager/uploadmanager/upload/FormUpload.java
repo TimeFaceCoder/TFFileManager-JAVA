@@ -1,6 +1,8 @@
 package cn.timeface.filemanager.uploadmanager.upload;
 
+import cn.timeface.filemanager.uploadmanager.IUploadStateListener;
 import cn.timeface.filemanager.uploadmanager.UploadInfo;
+import cn.timeface.filemanager.uploadmanager.UploadManager;
 import cn.timeface.filemanager.utils.Constants;
 import com.squareup.okhttp.*;
 
@@ -11,6 +13,7 @@ import java.io.IOException;
  * Created by rayboot on 15/5/29.
  */
 public class FormUpload extends UploadStrategy {
+    IUploadStateListener listener = UploadManager.getInstance().getUploadStateListener();
 
     public FormUpload(UploadInfo uploadInfo) {
         super(uploadInfo);
@@ -46,11 +49,14 @@ public class FormUpload extends UploadStrategy {
 
         Response response = client.newCall(request).execute();
         if (!response.isSuccessful()) {
-
+            listener.error(uploadInfo.getToken());
             throw new IOException("Unexpected code " + response);
         }
 
         System.out.println(response.body().string());
+        if (listener != null) {
+            listener.taskComplete(uploadInfo);
+        }
     }
 
     public MediaType getMediaType() {
